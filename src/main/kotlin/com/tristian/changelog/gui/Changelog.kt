@@ -4,6 +4,7 @@ import com.google.common.collect.Queues
 import com.google.gson.JsonElement
 import com.google.gson.JsonParser
 import com.google.gson.stream.JsonReader
+import org.apache.commons.lang3.StringUtils
 import java.io.IOException
 import java.lang.IllegalStateException
 import java.net.URL
@@ -95,7 +96,6 @@ class Changelog {
         val path = CHANGELOG_URL.path
         val flag = path.matches(GH_API_PATTERN)
 
-        println(path)
         /**
          * The file extension doesn't matter if we're reading from a github api.
          */
@@ -118,6 +118,13 @@ class Changelog {
         }
     }
 
+    /**
+     * Read changelog as json.
+     * Take some json, we convert it to an objects,
+     * we take the keys and values that they have (titles and entries)
+     * and then shove them up our queue.
+     *
+     */
     private fun readChangelogAsJson() {
 
         val jsonElement: JsonElement? = let {
@@ -138,8 +145,8 @@ class Changelog {
             }
             null
         }
-        jsonElement?.asJsonObject.runCatching {
-            this?.entrySet()?.forEach {
+        jsonElement?.asJsonArray.runCatching {
+            this?.get(0)?.asJsonObject?.entrySet()?.forEach {
                 this@Changelog.changelogContents.addAll(
                     listOf(ChangelogEntry(
                         it.key,
@@ -169,11 +176,11 @@ class Changelog {
          * @return
          */
         fun getFormattedContents(): Collection<String> {
-            return contents.map { "${CHANGELOG_MODE.delim} $it" }
+            return contents.map { StringUtils.leftPad("${CHANGELOG_MODE.delim} $it", CHANGELOG_ENTRY_PADDING_LEFT) }
         }
 
         override fun toString(): String {
-            return "ChangelogEntry(title='$title', contents=$contents)"
+            return "ChangelogEntry(title='$title', contents=$contents, formattedContents=${getFormattedContents()}})"
         }
 
     }
