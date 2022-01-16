@@ -9,7 +9,6 @@ import net.minecraft.client.gui.FontRenderer
 import net.minecraft.client.renderer.GlStateManager
 import org.apache.commons.lang3.StringUtils
 import java.io.IOException
-import java.lang.IllegalStateException
 import java.net.URL
 import java.util.concurrent.ConcurrentLinkedQueue
 
@@ -79,6 +78,7 @@ class Changelog {
          */
         private val GH_API_PATTERN = Regex("(https?:\\/\\/)?api\\.github\\.com\\/repos\\/.+\\/.+\\/commits")
 
+        // mc stuffs
         private val mc: Minecraft = Minecraft.getMinecraft()
         private val fr: FontRenderer = mc.fontRenderer
 
@@ -104,16 +104,16 @@ class Changelog {
             GlStateManager.disableBlend()
             GlStateManager.pushMatrix()
             GlStateManager.translate(0.0, 0.0, 0.0)
-            var titleY = y + (sum * fr.FONT_HEIGHT) + fr.FONT_HEIGHT // give it some leeway
+            val titleY = y + (sum * fr.FONT_HEIGHT) + fr.FONT_HEIGHT // give it some leeway
             fr.drawString(title, x, titleY, CHANGELOG_HEADER_COLOR)
             it.getFormattedContents().forEachIndexed { ind, s ->
                 fr.drawString(s, x, titleY + (ind * fr.FONT_HEIGHT) + fr.FONT_HEIGHT, CHANGELOG_ENTRY_TEXT_COLOR)
                 ++sum // keep track of how many times we render something, so that we can adjust our height.
                 // make sure we adjust.
             }
-            ++sum
             GlStateManager.popMatrix()
             GlStateManager.enableBlend()
+            ++sum
         }
 //        finally render a backwards and forwards button.
 
@@ -160,7 +160,6 @@ class Changelog {
             try {
                 return@let JsonParser().parse(JsonReader(run {
                     try {
-
                         /**
                          * Return the thing with the thing opened in a thing streamer thinger.
                          */
@@ -174,6 +173,9 @@ class Changelog {
             }
             null
         }
+        /**
+         * put it into our queue.
+         */
         jsonElement?.asJsonArray.runCatching {
             this?.get(0)?.asJsonObject?.entrySet()?.forEach {
                 this@Changelog.changelogContents.addAll(
@@ -200,9 +202,9 @@ class Changelog {
 
         /**
          * Get formatted contents for rendering in the changelog.
-         * This turns the contents into a
-         *
-         * @return
+         * This turns the contents into a big fat nice list.
+         * also the leftpad doesnt work for some reason
+         * @return the contents but nicer
          */
         fun getFormattedContents(): Collection<String> {
             return contents.map { StringUtils.leftPad("${CHANGELOG_MODE.delim} $it", CHANGELOG_ENTRY_PADDING_LEFT) }
