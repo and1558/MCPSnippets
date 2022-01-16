@@ -4,12 +4,14 @@ import com.google.common.collect.Queues
 import com.google.gson.JsonElement
 import com.google.gson.JsonParser
 import com.google.gson.stream.JsonReader
+import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.FontRenderer
+import net.minecraft.client.renderer.GlStateManager
 import org.apache.commons.lang3.StringUtils
 import java.io.IOException
 import java.lang.IllegalStateException
 import java.net.URL
 import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.regex.Pattern
 
 
 /**
@@ -33,7 +35,7 @@ class Changelog {
          * What color should each header title's text be?
          * (the headers are the day entries)
          */
-        const val CHANGELOG_HEADER_COLOR: Int = 0x00000
+        val CHANGELOG_HEADER_COLOR: Int = java.awt.Color.red.rgb
 
 
         /**
@@ -70,12 +72,15 @@ class Changelog {
         /**
          * The filetypes that this changelog will support reading.
          */
-        val SUPPORTED_FILE_EXTENSIONS = listOf("yml", "json")
+        private val SUPPORTED_FILE_EXTENSIONS = listOf("yml", "json")
 
         /**
          * Used to detect whether or not it's a github api url that needs to be read.
          */
         private val GH_API_PATTERN = Regex("(https?:\\/\\/)?api\\.github\\.com\\/repos\\/.+\\/.+\\/commits")
+
+        private val mc: Minecraft = Minecraft.getMinecraft()
+        private val fr: FontRenderer = mc.fontRenderer
 
     }
 
@@ -86,7 +91,31 @@ class Changelog {
     private val changelogContents: ConcurrentLinkedQueue<ChangelogEntry> = Queues.newConcurrentLinkedQueue<ChangelogEntry>()
 
 
-    fun render() {
+    fun render(x: Int, y: Int) {
+
+        // todo turn this into O(n) (or better) instead of n^2
+        var sum = 1
+
+//        todo make the buttons.
+        changelogContents.forEachIndexed { index, it ->
+
+            val title = it.title
+            println(title)
+            GlStateManager.disableBlend()
+            GlStateManager.pushMatrix()
+            GlStateManager.translate(0.0, 0.0, 0.0)
+            var titleY = y + (sum * fr.FONT_HEIGHT) + fr.FONT_HEIGHT // give it some leeway
+            fr.drawString(title, x, titleY, CHANGELOG_HEADER_COLOR)
+            it.getFormattedContents().forEachIndexed { ind, s ->
+                fr.drawString(s, x, titleY + (ind * fr.FONT_HEIGHT) + fr.FONT_HEIGHT, CHANGELOG_ENTRY_TEXT_COLOR)
+                ++sum // keep track of how many times we render something, so that we can adjust our height.
+                // make sure we adjust.
+            }
+            ++sum
+            GlStateManager.popMatrix()
+            GlStateManager.enableBlend()
+        }
+//        finally render a backwards and forwards button.
 
     }
 
