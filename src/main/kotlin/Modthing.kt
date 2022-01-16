@@ -1,5 +1,3 @@
-package com.tristian.changelog
-
 import com.tristian.changelog.gui.Changelog
 import net.minecraftforge.fml.common.Mod
 import net.minecraftforge.fml.common.event.FMLInitializationEvent

@@ -7,7 +7,6 @@ class Changelog {
 
 
     companion object Constants {
-
         /**
          * What opacity should the background of the changelog be?
          */
