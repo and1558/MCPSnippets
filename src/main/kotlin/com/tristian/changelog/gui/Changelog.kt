@@ -6,12 +6,17 @@ import com.google.gson.JsonParser
 import com.google.gson.stream.JsonReader
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.FontRenderer
+import net.minecraft.client.gui.Gui
+import net.minecraft.client.gui.ScaledResolution
 import net.minecraft.client.renderer.GlStateManager
-import org.apache.commons.lang3.StringUtils
+import org.lwjgl.input.Mouse
+import org.lwjgl.opengl.GL11
+import java.awt.Color
 import java.io.IOException
-import java.lang.Math.max
 import java.net.URL
 import java.util.concurrent.ConcurrentLinkedQueue
+import kotlin.math.max
+import kotlin.math.min
 
 
 /**
@@ -26,22 +31,22 @@ class Changelog {
     companion object Constants {
 
         /**
-         * What opacity should the background of the changelog be?
+         * What color should the background of the changelog be?
          */
-        const val CHANGELOG_BACKGROUND_OPACITY: Float = 1.0f
+        val CHANGELOG_BACKGROUND_COLOR: Int = Color(255, 255, 255, 30).rgb
 
 
         /**
          * What color should each header title's text be?
          * (the headers are the day entries)
          */
-        val CHANGELOG_HEADER_COLOR: Int = java.awt.Color.blue.rgb
+        val CHANGELOG_HEADER_COLOR: Int = Color.blue.rgb
 
 
         /**
          * What should be the color of the day's text?
          */
-        val CHANGELOG_ENTRY_TEXT_COLOR: Int = java.awt.Color.yellow.rgb
+        val CHANGELOG_ENTRY_TEXT_COLOR: Int = Color.yellow.rgb
 
         /**
          * Padding left of the changelog entries
@@ -52,7 +57,7 @@ class Changelog {
 
         /**
          * @see URL
-         * Change me. you can figure it out yourself how urls work in this programming language.. You can find an example file in the repo tho..
+         * Change me to adjust your changelog. you can figure it out yourself how urls work in this programming language.. You can find an example file in the repo tho..
          * This can either be a file path, or a github commit api url
          * (i.e https://api.github.com/repos/chrislgarry/Apollo-11/commits)
          */
@@ -70,18 +75,35 @@ class Changelog {
         //============================DO NOT CHANGE BEYOND THIS POINT OR NOT WORKING!11============================
 
         /**
-         * The filetypes that this changelog will support reading.
+         * The file types that this changelog will support reading.
          */
         private val SUPPORTED_FILE_EXTENSIONS = listOf("yml", "json")
 
         /**
          * Used to detect whether or not it's a github api url that needs to be read.
          */
-        private val GH_API_PATTERN = Regex("(https?:\\/\\/)?api\\.github\\.com\\/repos\\/.+\\/.+\\/commits")
+        private val GH_API_PATTERN = Regex("(https?://)?api\\.github\\.com/repos/.+/.+/commits")
+
+        /**
+         * the width of the changelog will be decided by the biggest string width.
+         */
+        private var WIDTH: Int = 0
+
 
         // mc stuffs
         private val mc: Minecraft = Minecraft.getMinecraft()
         private val fr: FontRenderer = mc.fontRenderer
+
+        /**
+         * The height of the changelog will be decided by the given y of the render and the display height.
+         */
+        private var HEIGHT: Int = mc.displayHeight
+
+
+        /**
+         * Change in y, this is for scrolling stuff.
+         */
+        private var dy: Int = 0
 
     }
 
@@ -94,37 +116,51 @@ class Changelog {
 
     fun render(x: Int, y: Int) {
 
-        // todo turn this into O(n) (or better) instead of n^2
+        dy -= Mouse.getEventDWheel()
+
         var sum = 1
 
-//        todo make the buttons.
 
-        /**
-         * Used height will determine when we need to stop rendering and save it for the next page.
-         */
-        var usedHeight = 0
-        var maxHeight = mc.displayHeight
+        Gui.drawRect(x, y, x + WIDTH, y + HEIGHT, CHANGELOG_BACKGROUND_COLOR)
+
+        // todo turn this into O(n) (or better) instead of n^2
 
         changelogContents.forEachIndexed { index, it ->
 
             val title = it.title
-            println(title)
-            GlStateManager.disableBlend()
+
+            var titleY = min(y + (sum * fr.FONT_HEIGHT),
+                (y + (sum * fr.FONT_HEIGHT)) - dy)
+
+            if (index == changelogContents.size - 1) titleY = max(y, titleY) // make sure there's always at least one thing visible.
+
+
             GlStateManager.pushMatrix()
+            GlStateManager.disableBlend() //setup
             GlStateManager.translate(0.0, 0.0, 0.0)
-            val titleY = y + (sum * fr.FONT_HEIGHT) + fr.FONT_HEIGHT // give it some leeway
+
+            GL11.glEnable(GL11.GL_SCISSOR_TEST)
+
+            // alow for scroll111
+            scissorHelper(x, y, x + WIDTH, y + HEIGHT)
+
+            // draw the header of the day.
             fr.drawString(title, x, titleY, CHANGELOG_HEADER_COLOR)
+
             it.getFormattedContents().forEachIndexed { ind, s ->
                 val contentY = titleY + (ind * fr.FONT_HEIGHT) + fr.FONT_HEIGHT
                 fr.drawString(s, x, contentY, CHANGELOG_ENTRY_TEXT_COLOR)
-                ++sum // keep track of how many times we render something, so that we can adjust our height.
-                // make sure we adjust.
+                ++sum // keep track of how many times we render something, so that we can adjust our y level..
             }
+
+
+            // set uhh down
+            GL11.glDisable(GL11.GL_SCISSOR_TEST)
             GlStateManager.popMatrix()
             GlStateManager.enableBlend()
-            ++sum
+
+            ++sum // just for good measure.
         }
-//        finally render a backwards and forwards button.
 
     }
 
@@ -191,6 +227,7 @@ class Changelog {
                     listOf(ChangelogEntry(
                         it.key,
                         it.value.asJsonArray.map { ele ->
+                            WIDTH = max(WIDTH, fr.getStringWidth(ele.asString) + 8)
                             ele.asString
                         })))
             }
@@ -236,4 +273,23 @@ class Changelog {
         ASTERISKS("*"),     // what do you think
         COMMAS(",")         // eh
     }
+
+    /**
+     * Scissor helper Function (from #user-made-snippets)
+     *
+     */
+    fun scissorHelper(x1: Int, y1: Int, x2: Int, y2: Int) {
+        var x2 = x2
+        var y2 = y2
+        x2 -= x1
+        y2 -= y1
+        val mc = Minecraft.getMinecraft()
+        val resolution = ScaledResolution(mc)
+        GL11.glScissor(x1 * resolution.scaleFactor,
+            mc.displayHeight - y1 * resolution.scaleFactor - y2 * resolution.scaleFactor,
+            x2 * resolution.scaleFactor,
+            y2 * resolution.scaleFactor
+        )
+    }
+
 }
