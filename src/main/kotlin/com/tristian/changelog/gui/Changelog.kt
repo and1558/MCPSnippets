@@ -9,6 +9,7 @@ import net.minecraft.client.gui.FontRenderer
 import net.minecraft.client.renderer.GlStateManager
 import org.apache.commons.lang3.StringUtils
 import java.io.IOException
+import java.lang.Math.max
 import java.net.URL
 import java.util.concurrent.ConcurrentLinkedQueue
 
@@ -34,13 +35,13 @@ class Changelog {
          * What color should each header title's text be?
          * (the headers are the day entries)
          */
-        val CHANGELOG_HEADER_COLOR: Int = java.awt.Color.red.rgb
+        val CHANGELOG_HEADER_COLOR: Int = java.awt.Color.blue.rgb
 
 
         /**
          * What should be the color of the day's text?
          */
-        const val CHANGELOG_ENTRY_TEXT_COLOR: Int = 0x00000
+        val CHANGELOG_ENTRY_TEXT_COLOR: Int = java.awt.Color.yellow.rgb
 
         /**
          * Padding left of the changelog entries
@@ -97,6 +98,13 @@ class Changelog {
         var sum = 1
 
 //        todo make the buttons.
+
+        /**
+         * Used height will determine when we need to stop rendering and save it for the next page.
+         */
+        var usedHeight = 0
+        var maxHeight = mc.displayHeight
+
         changelogContents.forEachIndexed { index, it ->
 
             val title = it.title
@@ -107,7 +115,8 @@ class Changelog {
             val titleY = y + (sum * fr.FONT_HEIGHT) + fr.FONT_HEIGHT // give it some leeway
             fr.drawString(title, x, titleY, CHANGELOG_HEADER_COLOR)
             it.getFormattedContents().forEachIndexed { ind, s ->
-                fr.drawString(s, x, titleY + (ind * fr.FONT_HEIGHT) + fr.FONT_HEIGHT, CHANGELOG_ENTRY_TEXT_COLOR)
+                val contentY = titleY + (ind * fr.FONT_HEIGHT) + fr.FONT_HEIGHT
+                fr.drawString(s, x, contentY, CHANGELOG_ENTRY_TEXT_COLOR)
                 ++sum // keep track of how many times we render something, so that we can adjust our height.
                 // make sure we adjust.
             }
@@ -203,11 +212,11 @@ class Changelog {
         /**
          * Get formatted contents for rendering in the changelog.
          * This turns the contents into a big fat nice list.
-         * also the leftpad doesnt work for some reason
+         * pads left based off of the given value to.
          * @return the contents but nicer
          */
         fun getFormattedContents(): Collection<String> {
-            return contents.map { StringUtils.leftPad("${CHANGELOG_MODE.delim} $it", CHANGELOG_ENTRY_PADDING_LEFT) }
+            return contents.map { ("${" ".repeat(CHANGELOG_ENTRY_PADDING_LEFT)}${CHANGELOG_MODE.delim} $it") }
         }
 
         override fun toString(): String {
