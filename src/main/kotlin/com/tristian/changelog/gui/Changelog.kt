@@ -227,7 +227,7 @@ class Changelog {
                     listOf(ChangelogEntry(
                         it.key,
                         it.value.asJsonArray.map { ele ->
-                            WIDTH = max(WIDTH, fr.getStringWidth(ele.asString) + 8)
+                            WIDTH = max(WIDTH, fr.getStringWidth(ChangelogEntry.formatString(ele.asString)))
                             ele.asString
                         })))
             }
@@ -246,19 +246,21 @@ class Changelog {
      */
     data class ChangelogEntry(val title: String, val contents: Collection<String>) {
 
+        companion object {
+            fun formatString(s: String) = "${" ".repeat(CHANGELOG_ENTRY_PADDING_LEFT)}${CHANGELOG_MODE.delim} $s"
+        }
+
         /**
          * Get formatted contents for rendering in the changelog.
          * This turns the contents into a big fat nice list.
          * pads left based off of the given value to.
          * @return the contents but nicer
          */
-        fun getFormattedContents(): Collection<String> {
-            return contents.map { ("${" ".repeat(CHANGELOG_ENTRY_PADDING_LEFT)}${CHANGELOG_MODE.delim} $it") }
-        }
+        fun getFormattedContents(): Collection<String> = contents.map(::formatString)
 
-        override fun toString(): String {
-            return "ChangelogEntry(title='$title', contents=$contents, formattedContents=${getFormattedContents()}})"
-        }
+
+        override fun toString(): String = "ChangelogEntry(title='$title', contents=$contents, formattedContents=${getFormattedContents()}})"
+
 
     }
 
